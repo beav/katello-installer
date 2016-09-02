@@ -21,7 +21,6 @@ end
 if app_value(:upgrade_puppet)
   if Kafo::Helpers.module_enabled?(@kafo, 'katello')
     upgrade_step :restart_services
-    # TODO: perform proxy refresh, same as "hammer proxy refresh-features --name $HOSTNAME"
   end
 
   if [0,2].include? @kafo.exit_code

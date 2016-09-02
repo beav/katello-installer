@@ -2,7 +2,7 @@ def puppet4_available?
   success = []
   success << Kafo::Helpers.execute('yum info puppet-agent')
   success << Kafo::Helpers.execute('yum info puppetserver')
-  success.include?(false)
+  !success.include?(false)
 end
 
 def stop_services
@@ -20,7 +20,7 @@ def copy_data
   success << Kafo::Helpers.execute('cp -rfp /etc/puppet/environments/* /etc/puppetlabs/code/environments') if File.directory?('/etc/puppet/environments')
   success << Kafo::Helpers.execute('mv /var/lib/puppet/ssl /etc/puppetlabs/puppet') if File.directory?('/var/lib/puppet/ssl')
   success << Kafo::Helpers.execute('mv /var/lib/puppet/foreman_cache_data /opt/puppetlabs/puppet/cache/') if File.directory?('/var/lib/puppet/foreman_cache_data')
-  success.include?(false)
+  !success.include?(false)
 end
 
 def upgrade_step(step)
@@ -43,6 +43,10 @@ def reset_value(param)
 end
 
 if app_value(:upgrade_puppet)
+  katello_or_kt_capsule = Kafo::Helpers.module_enabled?(@kafo, 'capsule_certs') || Kafo::Helpers.module_enabled?(@kafo, 'katello')
+  fail_and_exit 'Puppet 3 to 4 upgrade currently requires Katello or Katello capsule' unless katello_or_kt_capsule
+  fail_and_exit 'Upgrading Katello and Puppet at the same time is not supported. Please upgrade Katello first, then upgrade Puppet' if app_value(:upgrade)
+
   Kafo::Helpers.log_and_say :info, 'Upgrading puppet...'
   fail_and_exit 'Unable to find Puppet 4 packages, is the repository enabled?' unless puppet4_available?
 
@@ -57,8 +61,8 @@ if app_value(:upgrade_puppet)
   reset_value(param('foreman_proxy', 'puppetdir'))
   reset_value(param('foreman_proxy', 'ssldir'))
 
-  upgrade_step :stop_services
   upgrade_step :upgrade_puppet_package
+  upgrade_step :stop_services
   upgrade_step :copy_data
 
   Kafo::Helpers.log_and_say :info, "Puppet 3 to 4 upgrade initialization complete, continuing with installation"
